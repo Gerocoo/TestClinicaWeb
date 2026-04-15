@@ -1,0 +1,282 @@
+﻿@model TestClinicaWeb.Models.HomeViewModel
+
+@{
+    ViewData["Title"] = "Gestione Esami";
+    Layout = null; 
+}
+
+<!DOCTYPE html>
+<html lang="it">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Gestione Esami</title>
+        <style>
+        body { 
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+            margin: 0;
+            padding: 0;
+            background: #e9ecef; 
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            font-size: 15px; 
+        }
+
+        
+        .main-container {
+            background: white;
+            padding: 30px 40px;
+            border-radius: 10px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            width: 100%;
+            max-width: 900px; accent-color
+        }
+
+        h2 { color: #0078d7; border-bottom: 2px solid #0078d7; padding-bottom: 10px; margin-top: 0; }
+        h4 { color: #333; margin-top: 25px; margin-bottom: 15px; font-weight: 600; font-size: 18px; }
+       
+        select { 
+            border: 1px solid #ccc; 
+            border-radius: 4px; 
+            padding: 8px; 
+            background: white; 
+            font-size: 15px; 
+        }
+        select option { padding: 4px; } 
+        select option:checked { background-color: #0078d7; color: white; }
+        
+        input[type=text] { border: 1px solid #ccc; border-radius: 4px; padding: 8px 12px; font-size: 15px; }
+        
+        button { border: none; border-radius: 4px; padding: 8px 16px; cursor: pointer; background: #0078d7; color: white; transition: background 0.2s; font-weight: 500; font-size: 15px; }
+        button:hover { background: #005a9e; }
+        
+        .btn-secondary { background: #666; }
+        .btn-secondary:hover { background: #444; }
+        .btn-danger { background: #dc3545; padding: 6px 12px; font-size: 14px; }
+        .btn-danger:hover { background: #c82333; }
+        .btn-success { background: #28a745; font-weight: bold; }
+        .btn-success:hover { background: #218838; }
+
+        
+        table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 15px; }
+        th { background: #f8f9fa; color: #333; padding: 14px 10px; text-align: left; border-bottom: 2px solid #dee2e6; }
+        td { padding: 12px 10px; border-bottom: 1px solid #dee2e6; vertical-align: middle; }
+        tr:nth-child(even) { background: #fdfdfd; }
+        
+        .error-box { background: #fff0f0; border: 1px solid #dc3545; border-radius: 6px; padding: 15px 20px; margin-bottom: 20px; color: #dc3545; font-size: 15px; }
+    </style>
+</head>
+<body>
+
+<div class="main-container">
+    @if (ViewBag.ErroreDB != null)
+    {
+        <div class="error-box">
+            <strong>Errore di Connessione al Database</strong><br/>
+            <pre style="margin-top:8px; font-size:12px; white-space:pre-wrap;">@ViewBag.ErroreDB</pre>
+        </div>
+    }
+
+    <h2>Gestione Esami</h2>
+
+    
+    <div style="display:flex; gap:10px; margin-bottom:25px; align-items:center; flex-wrap:wrap;">
+        <select id="cmbCampo">
+            <option value="CodiceMinisteriale" selected="@(Model.CampoRicercaPredefinito == "CodiceMinisteriale")">Codice Ministeriale</option>
+            <option value="CodiceInterno" selected="@(Model.CampoRicercaPredefinito == "CodiceInterno")">Codice Interno</option>
+            <option value="DescrizioneEsame" selected="@(Model.CampoRicercaPredefinito == "DescrizioneEsame")">Descrizione Esame</option>
+        </select>
+        <input type="text" id="txtRicerca" value="@Model.TestoRicercaPredefinito" placeholder="Cerca esame..." style="width:250px;" />
+        <button onclick="applicaFiltri()">Cerca</button>
+        <button onclick="resetRicerca()" class="btn-secondary">Vedi Tutti</button>
+    </div>
+
+    
+    <div style="display:flex; gap:15px; margin-bottom:15px;">
+        <div>
+            <div id="lblAmbulatori" style="font-weight:600; color:#555; font-size:13px; margin-bottom:5px;">Ambulatori</div>
+            <select id="lstAmbulatori" size="10" style="width:160px; display:block;" onchange="caricaPartiCorpo()"></select>
+        </div>
+        <div>
+            <div id="lblPartiCorpo" style="font-weight:600; color:#555; font-size:13px; margin-bottom:5px;">Parti del Corpo</div>
+            <select id="lstPartiCorpo" size="10" style="width:160px; display:block;" onchange="caricaEsami()"></select>
+        </div>
+        <div style="flex-grow: 1;">
+            <div id="lblEsami" style="font-weight:600; color:#555; font-size:13px; margin-bottom:5px;">Esami</div>
+            <select id="lstEsami" size="10" style="width:100%; display:block;"></select>
+        </div>
+    </div>
+
+   
+    <div style="display:flex; justify-content:flex-end; margin-bottom:20px;">
+        <button onclick="aggiungiEsame()" style="padding:10px 20px; font-size:15px;">Conferma Esame</button>
+    </div>
+
+    <hr style="border:0; border-top:1px solid #ddd; margin:30px 0;" />
+
+    <h4>Esami Scelti <span id="contatoreEsami" style="font-weight:normal; font-size:14px; color:#666;"></span></h4>
+
+   
+    <table id="tblScelti">
+        <thead>
+            <tr>
+                <th style="width: 40px; text-align:center;">&#8597;</th>
+                <th>Cod. Ministeriale</th>
+                <th>Cod. Interno</th>
+                <th>Descrizione</th>
+                <th style="width: 80px;">Azioni</th>
+            </tr>
+        </thead>
+        <tbody id="tbodyScelti"></tbody>
+    </table>
+
+    
+    <div style="display:flex; justify-content:flex-end;">
+        <button onclick="esportaCSV()" class="btn-success">Esporta CSV</button>
+    </div>
+
+</div> 
+
+<script>
+    let esamiScelti = [];
+    let draggedIndex = null;
+    
+    document.addEventListener('DOMContentLoaded', () => applicaFiltri());
+    document.getElementById('txtRicerca').addEventListener('keydown', e => { if (e.key === 'Enter') applicaFiltri(); });
+
+    function getRicerca() { return document.getElementById('txtRicerca').value; }
+    function getCampo() { return document.getElementById('cmbCampo').value; }
+
+    async function applicaFiltri() {
+        const r = getRicerca(), c = getCampo();
+        const ambulatori = await fetch(`/Home/GetAmbulatori?ricerca=${encodeURIComponent(r)}&campo=${c}`).then(x => x.json());
+        popolaSelect('lstAmbulatori', ambulatori, 'id', 'nome');
+        await caricaPartiCorpo();
+    }
+
+    async function caricaPartiCorpo() {
+        const aId = document.getElementById('lstAmbulatori').value;
+        const aNome = document.getElementById('lstAmbulatori').options[document.getElementById('lstAmbulatori').selectedIndex]?.text || '';
+        if (!aId) {
+            document.getElementById('lstPartiCorpo').innerHTML = '';
+            document.getElementById('lstEsami').innerHTML = '';
+            return;
+        }
+        
+        const r = getRicerca(), c = getCampo();
+        const parti = await fetch(`/Home/GetPartiCorpo?ambulatorioId=${aId}&ricerca=${encodeURIComponent(r)}&campo=${c}`).then(x => x.json());
+        popolaSelect('lstPartiCorpo', parti, 'id', 'nome');
+        
+        document.getElementById('lblPartiCorpo').textContent = `Parti del Corpo in ${aNome}`;
+        await caricaEsami();
+    }
+
+    async function caricaEsami() {
+        const aId = document.getElementById('lstAmbulatori').value;
+        const pId = document.getElementById('lstPartiCorpo').value;
+        const aNome = document.getElementById('lstAmbulatori').options[document.getElementById('lstAmbulatori').selectedIndex]?.text || '';
+        const pNome = document.getElementById('lstPartiCorpo').options[document.getElementById('lstPartiCorpo').selectedIndex]?.text || '';
+        
+        if (!aId || !pId) {
+            document.getElementById('lstEsami').innerHTML = '';
+            return;
+        }
+        
+        const r = getRicerca(), c = getCampo();
+        const esami = await fetch(`/Home/GetEsami?ambulatorioId=${aId}&parteCorpoId=${pId}&ricerca=${encodeURIComponent(r)}&campo=${c}`).then(x => x.json());
+        popolaSelect('lstEsami', esami, 'id', 'descrizioneEsame', esame => JSON.stringify(esame));
+        
+        document.getElementById('lblEsami').textContent = `Esami in ${aNome} › ${pNome}`;
+    }
+
+    function resetRicerca() { 
+        document.getElementById('txtRicerca').value = ''; 
+        applicaFiltri(); 
+    }
+
+    function aggiungiEsame() {
+        const sel = document.getElementById('lstEsami');
+        if (!sel.value) return;
+        const esame = JSON.parse(sel.value);
+        esamiScelti.push(esame);
+        renderGriglia();
+    }
+
+    function rimuoviEsame(index) { 
+        esamiScelti.splice(index, 1); 
+        renderGriglia(); 
+    }
+
+    function renderGriglia() {
+        const tbody = document.getElementById('tbodyScelti');
+        document.getElementById('contatoreEsami').textContent = esamiScelti.length > 0 ? `(${esamiScelti.length} esame/i)` : '';
+        
+        tbody.innerHTML = esamiScelti.length === 0
+            ? '<tr><td colspan="5" style="text-align:center;color:#999;padding:30px;">Nessun esame selezionato</td></tr>'
+            : esamiScelti.map((e, i) => `
+                <tr draggable="true" 
+                    ondragstart="dragStart(${i})" 
+                    ondragover="dragOver(event)" 
+                    ondrop="drop(event, ${i})"
+                    style="cursor: grab;">
+                    <td style="color:#aaa; text-align:center; user-select:none; font-size:18px;">&#9776;</td>
+                    <td>${e.codiceMinisteriale}</td>
+                    <td>${e.codiceInterno}</td>
+                    <td>${e.descrizioneEsame}</td>
+                    <td>
+                        <button onclick="rimuoviEsame(${i})" class="btn-danger">Rimuovi</button>
+                    </td>
+                </tr>`).join('');
+    }
+
+    function dragStart(index) {
+        draggedIndex = index;
+    }
+
+    function dragOver(event) {
+        event.preventDefault(); 
+    }
+
+    function drop(event, targetIndex) {
+        event.preventDefault();
+        if (draggedIndex === null || draggedIndex === targetIndex) return;
+
+        const elementoTrascinato = esamiScelti.splice(draggedIndex, 1)[0];
+        esamiScelti.splice(targetIndex, 0, elementoTrascinato);
+        
+        draggedIndex = null;
+        renderGriglia();
+    }
+
+    function esportaCSV() {
+        if (esamiScelti.length === 0) { 
+            alert('Nessun esame da esportare.'); 
+            return; 
+        }
+        
+        const righe = [
+            'CodiceMinisteriale;CodiceInterno;DescrizioneEsame',
+            ...esamiScelti.map(e => `${e.codiceMinisteriale};${e.codiceInterno};${e.descrizioneEsame}`)
+        ];
+        
+        const blob = new Blob([righe.join('\n')], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'esami_scelti.csv';
+        a.click();
+        URL.revokeObjectURL(url);
+    }
+
+    function popolaSelect(id, items, valKey, txtKey, valueFunc = null) {
+        const sel = document.getElementById(id);
+        sel.innerHTML = items.map(item =>
+            `<option value="${valueFunc ? valueFunc(item).replace(/"/g, '&quot;') : item[valKey]}">${item[txtKey]}</option>`
+        ).join('');
+        if (items.length > 0) sel.selectedIndex = 0;
+    }
+</script>
+</body>
+</html>
