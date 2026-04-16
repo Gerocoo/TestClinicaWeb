@@ -1,43 +1,31 @@
-# Test Tecnico - Gestione Esami Clinici
+# Test Tecnico - Gestione Esami Clinici (App Web)
 
-Questa repository contiene la soluzione al test tecnico per la gestione, ricerca e prenotazione di esami clinici. 
-Il progetto è suddiviso in due interfacce distinte che condividono la stessa logica di dominio, ma adattate ai rispettivi contesti tecnologici e di utilizzo:
-
-1. **App Desktop:** C# Windows Forms (.NET Framework / .NET Core)
-2. **App Web:** ASP.NET Core MVC & Vanilla JS
+Questa repository contiene l'implementazione Web del test tecnico per la gestione, ricerca e prenotazione di esami clinici, sviluppata in ASP.NET Core MVC e Vanilla JavaScript.
 
 ## Istruzioni per l'avvio
 
 * **Database:** Nella root del progetto è presente lo script `DBTest.sql`. È sufficiente eseguirlo in SQL Server per generare il database `TestClinica` con la struttura e i dati fittizi necessari.
-* **Stringa di connessione:** Entrambi i progetti puntano di default all'istanza `localhost\SQLEXPRESS` con `Integrated Security=True`. In caso di server differente, aggiornare la stringa di connessione presente in:
-  * *Desktop:* `Form1.cs`
-  * *Web:* `HomeController.cs`
+* **Stringa di connessione:** Il progetto punta di default all'istanza `localhost\SQLEXPRESS` con `Integrated Security=True`. In caso di server differente, aggiornare la stringa di connessione presente all'interno del file `appsettings.json` o direttamente nel `HomeController.cs`.
 
 ---
 
-# Scelte Architetturali e Progettuali
+## Scelte Architetturali e Progettuali
 
-Durante lo sviluppo si è evitato di replicare in modo identico la logica tra i due ambienti, preferendo adattare le funzionalità ai rispettivi casi d'uso:
+### 1. Gestione dei duplicati (Consentita)
+L'applicazione Web, concepita come portale di prenotazione rivolto all'utente o al paziente, deve consentire di prenotare lo stesso esame più volte (ad esempio per monitoraggi a distanza di tempo, o in ambulatori e date differenti, logiche non implementate in quanto non richieste dal test). Pertanto, a differenza del client Desktop, la validazione anti-duplicato non è stata forzata.
 
-# Gestione dei duplicati:
-* **Desktop:** L'applicazione Desktop è pensata per un operatore che compila una singola prescrizione, dove un esame inserito due volte è verosimilmente un errore. Pertanto, l'inserimento di duplicati nella griglia di riepilogo è stato disabilitato.
-* **Web:** L'applicazione Web, concepita come portale di prenotazione, deve consentire all'utente di prenotare lo stesso esame più volte (es. per date o ambulatori differenti, logiche non implementate in quanto non richieste dal test).
-
-# Ordinamento della lista: Drag & Drop vs Bottoni
-* **Web:** È stato implementato un sistema di ordinamento tramite **Drag & Drop nativo HTML5**, per offrire un'esperienza utente fluida e moderna.
-* **Desktop:** Sono stati mantenuti i classici bottoni "Su/Giù". Forzare il drag & drop nativo sulle righe di una `DataGridView` in WinForms richiede codice di basso livello basato sugli eventi del mouse che risulterebbe inutilmente complesso e fragile in un contesto gestionale, dove l'uso di bottoni espliciti rappresenta uno standard molto più solido.
+### 2. Ordinamento della lista (Drag & Drop HTML5)
+È stato implementato un sistema di ordinamento tramite Drag & Drop nativo HTML5 sulle righe della tabella. Questo approccio, combinato con Vanilla JS, offre un'esperienza utente fluida e moderna, perfettamente in linea con gli standard delle interfacce web attuali.
 
 ### 3. Gestione delle Configurazioni
-Per il caricamento dei filtri di ricerca predefiniti:
-* **Desktop:** Legge il file `config.ini` tramite Reflection (come da requisiti). Questo permette di mappare i parametri dinamicamente, rendendo il codice scalabile senza l'uso di if/else rigidi.
-* **Web:** Utilizza il file `appsettings.json` iniettato direttamente nel Controller, in perfetta linea con gli standard odierni di ASP.NET Core.
+A differenza della versione Desktop (che utilizza un parser custom per i file INI tramite Reflection come da requisiti specifici WinForms), per l'applicazione Web si è scelto di non replicare quell'architettura in quanto considerata un anti-pattern in questo ecosistema.
+L'applicazione si appoggia al file `appsettings.json` iniettato nativamente tramite Dependency Injection, allineando il portale agli standard di configurazione di ASP.NET Core MVC.
 
 ---
 
 ## Accorgimenti e Funzionalità Aggiuntive
 
-Oltre ai requisiti minimi di base, sono state integrate alcune funzionalità per garantire la robustezza del software:
+* **UI Asincrona:** Le liste dipendenti a cascata (Ambulatori -> Parti del Corpo -> Esami) vengono popolate tramite chiamate AJAX asincrone (`fetch()`) ad endpoint JSON dedicati nel Controller. Questo evita qualsiasi ricaricamento intero della pagina, azzerando il flickering.
+* **Esportazione Dati:** È stata implementata la funzionalità di download degli esami scelti in formato `.csv`, generata dinamicamente via Javascript sfruttando le API dei Blob.
+* **Gestione Graceful degli errori DB:** Qualora il database non fosse raggiungibile, il sistema intercetta l'eccezione evitando il classico crash (YSOD).
 
-* **Gestione Graceful degli errori DB:** Se il database non è raggiungibile all'avvio, le applicazioni non vanno in crash (YSOD o eccezioni non gestite), ma catturano l'eccezione mostrando un messaggio di errore all'utente chiaramente formattato.
-* **Esportazione Dati:** Implementazione del download della lista degli esami selezionati in formato `.csv` (gestito tramite Blob Javascript nel Web e `SaveFileDialog` nel Desktop).
-* **UI Asincrona (Web):** Le liste (select) dipendenti/a cascata vengono popolate tramite chiamate AJAX (`fetch()`) ad endpoint JSON dedicati, evitando qualsiasi ricaricamento intero della pagina.
